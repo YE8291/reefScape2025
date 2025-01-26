@@ -1,0 +1,31 @@
+{
+  "version": "2025.0",
+  "command": {
+    "type": "sequential",
+    "data": {
+      "commands": [
+        {
+          "type": "path",
+          "data": {
+            "pathName": "FBP Go Reef"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "FBP Go Back"
+          }
+        },
+        {
+          "type": "path",
+          "data": {
+            "pathName": "FBP Go Source"
+          }
+        }
+      ]
+    }
+  },
+  "resetOdom": false,
+  "folder": "Blue autos",
+  "choreoAuto": false
+}
