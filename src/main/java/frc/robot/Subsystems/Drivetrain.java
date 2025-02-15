@@ -4,21 +4,29 @@
 
 package frc.robot.Subsystems;
 
-import com.revrobotics.RelativeEncoder;
+import com.pathplanner.lib.auto.AutoBuilder;
+import com.pathplanner.lib.config.RobotConfig;
+import com.pathplanner.lib.controllers.PPLTVController;
 import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.SparkBase.PersistMode;
 import com.revrobotics.spark.SparkBase.ResetMode;
 import com.revrobotics.spark.config.SparkMaxConfig;
 import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
+import com.studica.frc.AHRS;
+import com.studica.frc.AHRS.NavXComType;
 
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
 import edu.wpi.first.math.kinematics.DifferentialDriveOdometry;
+import edu.wpi.first.math.kinematics.DifferentialDriveWheelSpeeds;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.util.Units;
-import edu.wpi.first.wpilibj.AnalogGyro;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
+import edu.wpi.first.wpilibj.drive.DifferentialDrive.WheelSpeeds;
 import edu.wpi.first.wpilibj.simulation.AnalogGyroSim;
 import edu.wpi.first.wpilibj.simulation.DifferentialDrivetrainSim;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
@@ -43,11 +51,7 @@ public class Drivetrain extends SubsystemBase {
   private SparkMax m_rigthFront;
   private SparkMax m_rigthBack;
 
-  // The object encoders included in all motor in the drivetrain, to use odometry
-  private RelativeEncoder m_leftFrontEnc;
-  private RelativeEncoder m_leftBackEnc;
-  private RelativeEncoder m_rigthFrontEnc;
-  private RelativeEncoder m_rigthBackEnc;
+  // TODO: Create the needed objects for use the new encoders in the chassis
 
   // This object is used to manage the 4 motors as 1 system 
   private DifferentialDrive m_drive;
@@ -66,20 +70,26 @@ public class Drivetrain extends SubsystemBase {
 
   private Pose2d m_pose;
 
-  private AnalogGyro m_gyro;
+  //private AnalogGyro m_gyro;
+
+  private AHRS m_gyro;
 
   private AnalogGyroSim m_gyroSim;
 
   private DifferentialDriveOdometry m_odometry;
 
+  private DifferentialDriveKinematics m_kinematics;
+
   /** Creates a new Drivetrain. */
   public Drivetrain() {
+    m_gyro = new AHRS(NavXComType.kMXP_SPI);
+
     // Create the motor objects, with can id and motortype
     m_leftBack = new SparkMax(DrivetrainConst.k_leftBack, DrivetrainConst.k_motorType);
     m_leftFront = new SparkMax(DrivetrainConst.k_leftFront, DrivetrainConst.k_motorType);
     m_rigthBack = new SparkMax(DrivetrainConst.k_rigthBack, DrivetrainConst.k_motorType);
     m_rigthFront = new SparkMax(DrivetrainConst.k_rigthFront, DrivetrainConst.k_motorType);
-    
+
     // Create configs objects for each motor
     SparkMaxConfig globalConfigs = new SparkMaxConfig();
     SparkMaxConfig rigthLeaderConfig = new SparkMaxConfig();
@@ -93,26 +103,25 @@ public class Drivetrain extends SubsystemBase {
     rightFollowerConfigs.apply(globalConfigs).follow(m_rigthBack);
 
     // Apply the config for each motor
-    m_leftBack.configure(globalConfigs, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
-    m_leftFront.configure(leftFollowerConfigs, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
-    m_rigthBack.configure(rigthLeaderConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
-    m_rigthFront.configure(rightFollowerConfigs, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+    m_leftBack.configure(globalConfigs, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+    m_leftFront.configure(leftFollowerConfigs, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+    m_rigthBack.configure(rigthLeaderConfig, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
+    m_rigthFront.configure(rightFollowerConfigs, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
 
     // Create the config for the drivetrain and control all the motors as one motor
     m_drive = new DifferentialDrive(m_leftBack, m_rigthBack);
 
-    // Get the included encoder with each motor
-    m_leftFrontEnc = m_leftFront.getEncoder();
-    m_leftBackEnc = m_leftBack.getEncoder();
-    m_rigthFrontEnc = m_rigthFront.getEncoder();
-    m_rigthBackEnc = m_rigthBack.getEncoder();
+    m_drive.setSafetyEnabled(false);
+
+    // TODO: The encoders used in the drivetrain will changed for encoders in the drivetrain arrow, because only use 2 encoders in chassis left and right
+    // now don't have encoders in the motors because the chassis have CIM motors
 
     // Create the simulated drivetrain, only for use with the simulator
     m_driveSim = new DifferentialDrivetrainSim(
       DCMotor.getNEO(2),
       10.71, 
       7.5, 
-      15, 
+      52, 
       Units.inchesToMeters(6), 
       0.7112, 
       null
@@ -130,6 +139,24 @@ public class Drivetrain extends SubsystemBase {
     m_gyroSim.setAngle(0);
     
     m_odometry = new DifferentialDriveOdometry(Rotation2d.fromDegrees(m_gyroSim.getAngle()), 0, 0, firstAutoPose.K_POSE2D);
+    
+    m_kinematics = new DifferentialDriveKinematics(Units.inchesToMeters(27));
+
+    /*RobotConfig config;
+    try {
+      config = RobotConfig.fromGUISettings();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }*/
+
+    // TODO: END THE CONFIGURATION OF THE PATHPLANNER WHERE THIS CLASS HAVE A METOD TO GET THE RELATIVE SPEED WITH WPILIBJ KINEMATICS
+    /*AutoBuilder.configure(this::getPose, this::resetPose, this::getRobotRelativeSpeeds, (speeds, feedforwards) -> move(speeds, 0), new PPLTVController(0.02), config, () -> {
+      var alliance = DriverStation.getAlliance();
+      if(alliance.isPresent()){
+        return alliance.get() == DriverStation.Alliance.Red;
+      }
+      return false;
+    }, this);*/
   }
 
   // Method used for get the only one instance of the subsystem
@@ -161,21 +188,21 @@ public class Drivetrain extends SubsystemBase {
   
   // This method is used to execute the move of the drivetrain
   public void move(double linear, double rotation){
-    setSetpoint(linear);
+    //setSetpoint(linear);
     // Execute the move of the drivetrain
-    m_drive.arcadeDrive(linear, rotation);
+    m_drive.arcadeDrive(-linear, rotation);
     // This code is used for the simulation
     // This vars save the cleanest double for velocity in each side 
-    double linearSpeed = Math.copySign(linear * linear, linear);
-    double rotationSpeed = Math.copySign(rotation * rotation, rotation);
+    /*double linearSpeed = Math.copySign(linear * linear, linear);
+    double rotationSpeed = Math.copySign(rotation * rotation, rotation);*/
     // Apply the velocity to each side (because the simulated drivetrain don't have a direct method to do this)
-    m_driveSim.setInputs((linearSpeed + rotationSpeed)*12  , (linearSpeed - rotationSpeed)*12);
+    /*m_driveSim.setInputs((linearSpeed + rotationSpeed)*12  , (linearSpeed - rotationSpeed)*12);*/
     // Update the simulator
-    m_driveSim.update(0.02);
+    /*m_driveSim.update(0.02);*/
 
-    m_gyroSim.setAngle(m_driveSim.getHeading().getDegrees());
+    /*m_gyroSim.setAngle(m_driveSim.getHeading().getDegrees());*/
     // Update the pose in the 2d field
-    m_field.setRobotPose(m_driveSim.getPose());
+    /*m_field.setRobotPose(m_driveSim.getPose());*/
   }
 
   // Command used to call the movement, and asign this as the default command for the sybsystem
@@ -183,10 +210,12 @@ public class Drivetrain extends SubsystemBase {
     return run(() -> move(-linear.getAsDouble(), rotation.getAsDouble()));
   }
 
-  // Method to get the data readed for the physic encoders, in a array
-  public double[] getEncoders(){
-    double[] positions = {m_leftFrontEnc.getPosition(), m_leftBackEnc.getPosition(), m_rigthFrontEnc.getPosition(), m_rigthBackEnc.getPosition()};
-    return positions;
+  public Pose2d getPose(){
+    return m_odometry.getPoseMeters();
+  }
+
+  public void resetPose(Pose2d newPose){
+    m_odometry.resetPose(newPose);
   }
 
   // Method to get the data readed from the simulated encoders in a array
@@ -200,8 +229,9 @@ public class Drivetrain extends SubsystemBase {
     return velocity;
   }
 
-  public void setSetpoint(double setpoint){
-    m_pid.setSetpoint(setpoint);
+  public ChassisSpeeds getRobotRelativeSpeeds(){
+    DifferentialDriveWheelSpeeds wheelsSpeeds = new DifferentialDriveWheelSpeeds(m_driveSim.getLeftVelocityMetersPerSecond(), m_driveSim.getRightVelocityMetersPerSecond());
+    return m_kinematics.toChassisSpeeds(wheelsSpeeds);
   }
 
   @Override
@@ -217,5 +247,6 @@ public class Drivetrain extends SubsystemBase {
     m_field2.setRobotPose(m_odometry.getPoseMeters());
     SmartDashboard.putData("Odometry", m_field2);
     //m_driveSim.setInputs(m_pid.calculate(m_driveSim.getLeftVelocityMetersPerSecond()), m_driveSim.getRightVelocityMetersPerSecond());
+    SmartDashboard.putNumber("gyro", m_gyro.getAngle());
   }
 }

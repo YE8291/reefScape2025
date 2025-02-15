@@ -12,10 +12,25 @@ import edu.wpi.first.math.geometry.Rotation2d;
 /** Add your docs here. */
 public class Constants {
     public static class DrivetrainConst{
-        public final static int k_leftBack = 1;
-        public final static int k_leftFront = 2;
-        public final static int k_rigthBack = 3;
-        public final static int k_rigthFront = 4;
+        public final static int k_leftBack = 3;
+        public final static int k_leftFront = 4;
+        public final static int k_rigthBack = 1;
+        public final static int k_rigthFront = 2;
+        public final static MotorType k_motorType = MotorType.kBrushed;
+    }
+
+    public static class ElevatorConst{
+        public final static int k_firstEng = 5;
+        public final static MotorType k_motorType = MotorType.kBrushed;
+        public final static double kP = 0;
+        public final static double kI = 0;
+        public final static double kD = 0;
+        public final static int k_SensorChannel = 1;
+    }
+
+    public static class ShooterConst{
+        public final static int k_firstEng = 6;
+        public final static int k_secondEng = 7;
         public final static MotorType k_motorType = MotorType.kBrushless;
     }
 
