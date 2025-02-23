@@ -66,8 +66,6 @@ public class Drivetrain extends SubsystemBase {
   private Field2d m_field;
   private Field2d m_field2;
 
-  private PIDController m_pid;
-
   private Pose2d m_pose;
 
   //private AnalogGyro m_gyro;
@@ -113,19 +111,19 @@ public class Drivetrain extends SubsystemBase {
 
     m_drive.setSafetyEnabled(false);
 
-    // TODO: The encoders used in the drivetrain will changed for encoders in the drivetrain arrow, because only use 2 encoders in chassis left and right
-    // now don't have encoders in the motors because the chassis have CIM motors
-
     // Create the simulated drivetrain, only for use with the simulator
     m_driveSim = new DifferentialDrivetrainSim(
-      DCMotor.getNEO(2),
+      DCMotor.getCIM(2),
       10.71, 
       7.5, 
       52, 
       Units.inchesToMeters(6), 
-      0.7112, 
+      Units.inchesToMeters(27), 
       null
     );
+
+    Pose2d pose = new Pose2d(8, 3.85, Rotation2d.k180deg);
+    m_driveSim.setPose(pose);
 
     // Create the object that represent the game field
     m_field = new Field2d();
@@ -133,7 +131,7 @@ public class Drivetrain extends SubsystemBase {
     
     m_pid = new PIDController(0.01, 0, 0.00001);
     
-    m_field.setRobotPose(m_driveSim.getPose());
+    m_field.setRobotPose(pose);
 
     m_gyroSim = new AnalogGyroSim(1);
     m_gyroSim.setAngle(0);
@@ -142,21 +140,20 @@ public class Drivetrain extends SubsystemBase {
     
     m_kinematics = new DifferentialDriveKinematics(Units.inchesToMeters(27));
 
-    /*RobotConfig config;
+    RobotConfig config = null;
     try {
       config = RobotConfig.fromGUISettings();
     } catch (Exception e) {
       e.printStackTrace();
-    }*/
+    }
 
-    // TODO: END THE CONFIGURATION OF THE PATHPLANNER WHERE THIS CLASS HAVE A METOD TO GET THE RELATIVE SPEED WITH WPILIBJ KINEMATICS
-    /*AutoBuilder.configure(this::getPose, this::resetPose, this::getRobotRelativeSpeeds, (speeds, feedforwards) -> move(speeds, 0), new PPLTVController(0.02), config, () -> {
+    AutoBuilder.configure(this::getPose, this::resetPose, this::getRobotRelativeSpeeds, (speeds, feedforwards) -> drive(speeds), new PPLTVController(0.02), config, () -> {
       var alliance = DriverStation.getAlliance();
       if(alliance.isPresent()){
         return alliance.get() == DriverStation.Alliance.Red;
       }
       return false;
-    }, this);*/
+    }, this);
   }
 
   // Method used for get the only one instance of the subsystem
@@ -193,21 +190,38 @@ public class Drivetrain extends SubsystemBase {
     m_drive.arcadeDrive(-linear, rotation);
     // This code is used for the simulation
     // This vars save the cleanest double for velocity in each side 
-    /*double linearSpeed = Math.copySign(linear * linear, linear);
-    double rotationSpeed = Math.copySign(rotation * rotation, rotation);*/
+    double linearSpeed = Math.copySign(linear * linear, linear);
+    double rotationSpeed = Math.copySign(rotation * rotation, rotation);
     // Apply the velocity to each side (because the simulated drivetrain don't have a direct method to do this)
-    /*m_driveSim.setInputs((linearSpeed + rotationSpeed)*12  , (linearSpeed - rotationSpeed)*12);*/
+    m_driveSim.setInputs((linearSpeed + rotationSpeed)*12  , (linearSpeed - rotationSpeed)*12);
     // Update the simulator
-    /*m_driveSim.update(0.02);*/
+    m_driveSim.update(0.02);
 
-    /*m_gyroSim.setAngle(m_driveSim.getHeading().getDegrees());*/
+    m_gyroSim.setAngle(m_driveSim.getHeading().getDegrees());
     // Update the pose in the 2d field
-    /*m_field.setRobotPose(m_driveSim.getPose());*/
+    m_field.setRobotPose(m_driveSim.getPose());
   }
+
+  public void drive(ChassisSpeeds drive){
+    DifferentialDriveKinematics kinematics = new DifferentialDriveKinematics(Units.inchesToMeters(27));
+    DifferentialDriveWheelSpeeds wheelSpeeds = kinematics.toWheelSpeeds(drive);
+
+    double leftSpeed = wheelSpeeds.leftMetersPerSecond;
+    double rigthSpeed = wheelSpeeds.rightMetersPerSecond;
+
+    m_driveSim.setInputs(leftSpeed, rigthSpeed);
+    m_driveSim.update(0.02);
+
+    m_field.setRobotPose(m_driveSim.getPose());
+  }
+
+  //public Command executeDrive(DoubleSupplier linear, DoubleSupplier rotation){
+    //double linearSpeed = Math.copySign((linear.getAsDouble()*linear.getAsDouble()), linear);
+  //}
 
   // Command used to call the movement, and asign this as the default command for the sybsystem
   public Command executeMove(DoubleSupplier linear, DoubleSupplier rotation){
-    return run(() -> move(-linear.getAsDouble(), rotation.getAsDouble()));
+    return run(() -> move(-linear.getAsDouble()*0.7, rotation.getAsDouble()*0.7));
   }
 
   public Pose2d getPose(){
