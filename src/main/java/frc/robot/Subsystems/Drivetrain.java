@@ -129,8 +129,6 @@ public class Drivetrain extends SubsystemBase {
     m_field = new Field2d();
     m_field2 = new Field2d();
     
-    m_pid = new PIDController(0.01, 0, 0.00001);
-    
     m_field.setRobotPose(pose);
 
     m_gyroSim = new AnalogGyroSim(1);
