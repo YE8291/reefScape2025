@@ -29,3 +29,11 @@ Los comandos desarrollados para esta temporada se agregara despues su descripcio
     Para autonomo se utilizara path planner
     Se busca implementar controladores PID a todo lo que lo requiera
     Posteriormente se realizara una optimizacion del codigo y se realizara su respectiva documentacion
+
+## Git branches:
+El proyecto se divide en tres ramas:
+> Master: Rama principal contiene el ultimo codigo estable (funcionamiento comprobado de forma fisica)
+
+> Main: Rama secundaria contiene el codigo en desarrollo que se probara en el robot
+
+> Simulation: Rama secundaria a master que contiene el codigo que se utiliza para trabajar simulaciones
