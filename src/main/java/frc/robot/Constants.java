@@ -36,8 +36,8 @@ public class Constants {
 
     public static class firstAutoPose{
         public final static int k_xPose = 8;
-        public final static int k_yPose = 4;
-        public final static Rotation2d k_rotation = Rotation2d.kZero;
+        public final static double k_yPose = 3.85;
+        public final static Rotation2d k_rotation = Rotation2d.k180deg;
         public final static Pose2d K_POSE2D = new Pose2d(k_xPose, k_yPose, k_rotation);
     }
 
