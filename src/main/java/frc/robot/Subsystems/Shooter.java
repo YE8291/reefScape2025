@@ -28,23 +28,31 @@ public class Shooter extends SubsystemBase {
     SparkMaxConfig m_leaderConfig = new SparkMaxConfig();
     SparkMaxConfig m_slaveConfig = new SparkMaxConfig();
 
-    m_leaderConfig.smartCurrentLimit(50).idleMode(IdleMode.kCoast);
-    m_slaveConfig.smartCurrentLimit(50).idleMode(IdleMode.kCoast);
+    m_leaderConfig.smartCurrentLimit(40).idleMode(IdleMode.kBrake).closedLoopRampRate(1);
+    m_slaveConfig.smartCurrentLimit(40).idleMode(IdleMode.kBrake).closedLoopRampRate(1);
 
     m_leaderMotor.configure(m_leaderConfig, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
     m_slaveMotor.configure(m_slaveConfig, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
   }
 
   public void shoot(){
-    m_leaderMotor.set(0.18);
+    m_leaderMotor.set(-0.3);
+    m_slaveMotor.set(-0.3);
   }
 
   public void take(){
-    m_leaderMotor.set(-0.18);
+    m_leaderMotor.set(0.3);
+    m_slaveMotor.set(0.3);
+  }
+
+  public void let(){
+    m_slaveMotor.set(-0.20);
+    m_leaderMotor.set(-0.10);
   }
 
   public void stop(){
     m_leaderMotor.set(0);
+    m_slaveMotor.set(0);
   }
 
   public static Shooter getInstance(){

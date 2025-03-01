@@ -21,15 +21,13 @@ public class UpElevator extends Command {
   // Called when the command is initially scheduled.
   @Override
   public void initialize() {
-    m_Elevator.setSetpoint(25);
+    m_Elevator.setSetpoint(9.5);
     m_Elevator.enablePID();
   }
 
   // Called every time the scheduler runs while the command is scheduled.
   @Override
-  public void execute() {
-    m_Elevator.move(0.8);
-  }
+  public void execute() {}
 
   // Called once the command ends or is interrupted.
   @Override
@@ -40,10 +38,9 @@ public class UpElevator extends Command {
   // Returns true when the command should end.
   @Override
   public boolean isFinished() {
-    /*if(m_Elevator.getPosition() >= 23){
+    if(m_Elevator.getPosition() >= 9){
       return true;
     }
-    return false;*/
     return false;
   }
 }
