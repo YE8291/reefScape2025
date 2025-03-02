@@ -8,6 +8,7 @@ import com.pathplanner.lib.commands.PathPlannerAuto;
 
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+import frc.robot.Commands.DefaultDrive;
 import frc.robot.Commands.DownElevator;
 import frc.robot.Commands.Shoot;
 import frc.robot.Commands.StopElevator;
@@ -25,7 +26,7 @@ public class RobotContainer {
   }
 
   private void configureBindings() {
-    m_drivetrain.setDefaultCommand(m_drivetrain.executeMove(() -> m_Controller.getLeftY(), () -> m_Controller.getLeftX()));
+    m_drivetrain.setDefaultCommand(new DefaultDrive(m_Controller));
     m_Controller.a().whileTrue(new UpElevator()).whileFalse(new StopElevator());
     m_Controller.b().whileTrue(new DownElevator()).whileFalse(new StopElevator());
     m_Controller.x().whileTrue(new Shoot());

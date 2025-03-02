@@ -28,13 +28,9 @@ import edu.wpi.first.wpilibj.simulation.AnalogGyroSim;
 import edu.wpi.first.wpilibj.simulation.DifferentialDrivetrainSim;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
-import frc.robot.Constants.firstAutoPose;
 
 import static frc.robot.Constants.DrivetrainConst;
-
-import java.util.function.DoubleSupplier;
 
 // Drivetrain Subsystem is the system to drive the chassis of the robot
 public class Drivetrain extends SubsystemBase {
@@ -44,8 +40,6 @@ public class Drivetrain extends SubsystemBase {
   private SparkMax m_leftBack;
   private SparkMax m_rigthFront;
   private SparkMax m_rigthBack;
-
-  // TODO: Create the needed objects for use the new encoders in the chassis
 
   // This object is used to manage the 4 motors as 1 system 
   private DifferentialDrive m_drive;
@@ -59,7 +53,8 @@ public class Drivetrain extends SubsystemBase {
   // This object is used to create a representation 2d of the field, for put data in this representation
   private Field2d m_field;
 
-  private PIDController m_pid;
+  private PIDController m_pidLeft;
+  private PIDController m_pidRight;
 
   private AnalogGyroSim m_gyroSim;
 
@@ -103,24 +98,24 @@ public class Drivetrain extends SubsystemBase {
       DCMotor.getCIM(2),
       10.71, 
       7.5, 
-      52, 
+      43, 
       Units.inchesToMeters(6), 
       Units.inchesToMeters(27), 
       null
     );
 
-    Pose2d pose = new Pose2d(8, 3.85, Rotation2d.kZero);
-    m_driveSim.setPose(pose);
-
     // Create the object that represent the game field
     m_field = new Field2d();
-    
-    m_field.setRobotPose(pose);
 
     m_gyroSim = new AnalogGyroSim(1);
     m_gyroSim.setAngle(0);
     
-    m_odometry = new DifferentialDriveOdometry(Rotation2d.fromDegrees(m_gyroSim.getAngle()), 0, 0, firstAutoPose.K_POSE2D);
+    Pose2d pose = new Pose2d(8, 3.85, Rotation2d.k180deg);
+    m_driveSim.setPose(pose);
+
+    m_field.setRobotPose(pose);
+
+    m_odometry = new DifferentialDriveOdometry(Rotation2d.k180deg, 0, 0, pose);
     
     m_kinematics = new DifferentialDriveKinematics(Units.inchesToMeters(27));
 
@@ -138,6 +133,9 @@ public class Drivetrain extends SubsystemBase {
       }
       return false;
     }, this);
+
+    m_pidLeft = new PIDController(1.5, 0, 0.2);
+    m_pidRight = new PIDController(1.5, 0, 0.2);
   }
 
   // Method used for get the only one instance of the subsystem
@@ -163,30 +161,18 @@ public class Drivetrain extends SubsystemBase {
   public void drive(ChassisSpeeds drive){
     DifferentialDriveWheelSpeeds wheelSpeeds = m_kinematics.toWheelSpeeds(drive);
 
-    double leftSpeed = wheelSpeeds.leftMetersPerSecond;
-    double rigthSpeed = wheelSpeeds.rightMetersPerSecond;
+    double leftSpeed = m_pidLeft.calculate(m_driveSim.getLeftVelocityMetersPerSecond(), wheelSpeeds.leftMetersPerSecond);
+    double rigthSpeed = m_pidRight.calculate(m_driveSim.getRightVelocityMetersPerSecond(), wheelSpeeds.rightMetersPerSecond);
 
     m_driveSim.setInputs(leftSpeed, rigthSpeed);
-    SmartDashboard.putNumber("Linear vel", drive.vxMetersPerSecond);
-    SmartDashboard.putNumber("Angular vel", drive.omegaRadiansPerSecond);
-  }
-
-  // Command used to call the movement, and asign this as the default command for the subsystem
-  public Command executeMove(DoubleSupplier linear, DoubleSupplier rotation){
-    return run(() -> move(-linear.getAsDouble()*0.7, rotation.getAsDouble()*0.7));
-  }
-
-  public Command executeDrive(DoubleSupplier linear, DoubleSupplier rotation){
-    ChassisSpeeds chassisSpeeds = new ChassisSpeeds(linear.getAsDouble(), 0.0, rotation.getAsDouble());
-    return run(() -> drive(chassisSpeeds));
   }
 
   public Pose2d getPose(){
-    return m_odometry.getPoseMeters();
+    return m_driveSim.getPose();
   }
 
   public void resetPose(Pose2d newPose){
-    m_odometry.resetPose(newPose);
+    m_driveSim.setPose(newPose);
   }
 
   public ChassisSpeeds getRobotRelativeSpeeds(){
@@ -198,13 +184,13 @@ public class Drivetrain extends SubsystemBase {
   public void periodic() {
     m_driveSim.update(0.02);
     // Show the data in the smartdashboard
-    SmartDashboard.putNumber("sim left pos", Units.metersToInches(m_driveSim.getLeftPositionMeters()));
+    SmartDashboard.putNumber("sim left pos", m_driveSim.getLeftPositionMeters());
     SmartDashboard.putNumber("sim rigth pos", m_driveSim.getRightPositionMeters());
     SmartDashboard.putNumber("sim left vel", m_driveSim.getLeftVelocityMetersPerSecond());
     SmartDashboard.putNumber("sim rigth vel", m_driveSim.getRightVelocityMetersPerSecond());
-    SmartDashboard.putNumber("Gyro", m_gyroSim.getAngle());
-    m_odometry.update(Rotation2d.fromDegrees(m_gyroSim.getAngle()), m_driveSim.getLeftPositionMeters(), m_driveSim.getRightPositionMeters());
-    m_field.setRobotPose(m_driveSim.getPose());
+    SmartDashboard.putNumber("Gyro", m_driveSim.getHeading().getDegrees());
+    m_odometry.update(Rotation2d.fromDegrees(m_driveSim.getHeading().getDegrees()), m_driveSim.getLeftPositionMeters(), m_driveSim.getRightPositionMeters());
+    m_field.setRobotPose(m_odometry.getPoseMeters());
     SmartDashboard.putData("field", m_field);
   }
 }

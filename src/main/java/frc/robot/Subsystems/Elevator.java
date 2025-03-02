@@ -64,9 +64,9 @@ public class Elevator extends SubsystemBase {
     return m_pid.getSetpoint();
   }
 
-  /*public double getPosition(){
+  public double getPosition(){
     return m_firstMotorSim.getPosition();
-  }*/
+  }
 
   public static Elevator getInstance(){
     if(m_Elevator == null){
@@ -79,12 +79,12 @@ public class Elevator extends SubsystemBase {
   public void periodic() {
     // This method will be called once per scheduler run
     //SmartDashboard.putNumber("Elevator Encoder", m_encoder.getPosition());
-    /*double output;
+    double output;
     if(m_isEnable){
       output = m_pid.calculate(m_firstMotorSim.getPosition());
     }else{
       output = 0;
     }
-    move(output);*/
+    move(output);
   }
 }
