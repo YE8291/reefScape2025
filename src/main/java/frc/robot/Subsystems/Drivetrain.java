@@ -7,6 +7,7 @@ package frc.robot.Subsystems;
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.config.RobotConfig;
 import com.pathplanner.lib.controllers.PPLTVController;
+import com.pathplanner.lib.util.DriveFeedforwards;
 import com.revrobotics.RelativeEncoder;
 import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.SparkBase.PersistMode;
@@ -14,28 +15,24 @@ import com.revrobotics.spark.SparkBase.ResetMode;
 import com.revrobotics.spark.config.SparkMaxConfig;
 import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 import com.studica.frc.AHRS;
-import com.studica.frc.AHRS.NavXComType;
 
-//import edu.wpi.first.math.controller.PIDController;
+import edu.wpi.first.math.controller.PIDController;
+import edu.wpi.first.math.controller.SimpleMotorFeedforward;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
 import edu.wpi.first.math.kinematics.DifferentialDriveOdometry;
-import edu.wpi.first.math.kinematics.DifferentialDriveWheelPositions;
 import edu.wpi.first.math.kinematics.DifferentialDriveWheelSpeeds;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
-import frc.robot.Constants.firstAutoPose;
+import frc.robot.Constants.BlueCenter;
 
 import static frc.robot.Constants.DrivetrainConst;
-
-import java.util.function.DoubleSupplier;
 
 // Drivetrain Subsystem is the system to drive the chassis of the robot
 public class Drivetrain extends SubsystemBase {
@@ -58,18 +55,21 @@ public class Drivetrain extends SubsystemBase {
   // This object is used to create a representation 2d of the field, for put data in this representation
   private Field2d m_field;
 
-  //private PIDController m_pid;
+  private PIDController m_leftPid;
+  private PIDController m_rigthPid;
 
   private AHRS m_gyro;
 
   private DifferentialDriveOdometry m_odometry;
-
   private DifferentialDriveKinematics m_kinematics;
+
+  private double leftSpeed;
+  private double rigthSpeed;
+
+  private SimpleMotorFeedforward feedsFeedforward;
 
   /** Creates a new Drivetrain. */
   public Drivetrain() {
-    m_gyro = new AHRS(NavXComType.kMXP_SPI);
-
     // Create the motor objects, with can id and motortype
     m_leftBack = new SparkMax(DrivetrainConst.k_leftBack, DrivetrainConst.k_motorType);
     m_leftFront = new SparkMax(DrivetrainConst.k_leftFront, DrivetrainConst.k_motorType);
@@ -83,8 +83,8 @@ public class Drivetrain extends SubsystemBase {
     SparkMaxConfig rightFollowerConfigs = new SparkMaxConfig();
 
     // Apply the differents configs, for after apply each motor 
-    globalConfigs.smartCurrentLimit(50).idleMode(IdleMode.kCoast).closedLoopRampRate(2.5);
-    rigthLeaderConfig.apply(globalConfigs).inverted(true);
+    globalConfigs.smartCurrentLimit(50).idleMode(IdleMode.kBrake).closedLoopRampRate(2.5);
+    rigthLeaderConfig.apply(globalConfigs).inverted(true).encoder.velocityConversionFactor((Math.PI * Units.inchesToMeters(6))/60);
     leftFollowerConfigs.apply(globalConfigs).follow(m_leftBack);
     rightFollowerConfigs.apply(globalConfigs).follow(m_rigthBack);
 
@@ -105,11 +105,12 @@ public class Drivetrain extends SubsystemBase {
     // Create the object that represent the game field
     m_field = new Field2d();
     
-    //m_pid = new PIDController(0.01, 0, 0.00001);
+    m_gyro = new AHRS(DrivetrainConst.k_gyro);
+    m_gyro.setAngleAdjustment(BlueCenter.k_rotation.getDegrees());
+
+    m_odometry = new DifferentialDriveOdometry(Rotation2d.fromDegrees(m_gyro.getAngle()), getLeftMeters(), getRigthMeters(), BlueCenter.K_POSE2D);
     
-    m_odometry = new DifferentialDriveOdometry(Rotation2d.fromDegrees(m_gyro.getAngle()), 0, 0, firstAutoPose.K_POSE2D);
-    
-    m_kinematics = new DifferentialDriveKinematics(Units.inchesToMeters(27));
+    m_kinematics = new DifferentialDriveKinematics(DrivetrainConst.k_robotWidth);
 
     RobotConfig config = null;
     try {
@@ -118,13 +119,18 @@ public class Drivetrain extends SubsystemBase {
       e.printStackTrace();
     }
 
-    AutoBuilder.configure(this::getPose, this::resetPose, this::getRobotRelativeSpeeds, (speeds, feedforwards) -> executeDrive(speeds), new PPLTVController(0.02), config, () -> {
+    AutoBuilder.configure(this::getPose, this::resetPose, this::getRobotRelativeSpeeds, (speeds, feedforwards) -> driveAuto(speeds, feedforwards), new PPLTVController(0.02), config, () -> {
       var alliance = DriverStation.getAlliance();
       if(alliance.isPresent()){
         return alliance.get() == DriverStation.Alliance.Red;
       }
       return false;
     }, this);
+
+    m_leftPid = new PIDController(0.1, 0, 0);
+    m_rigthPid = new PIDController(0.1, 0, 0);
+
+    feedsFeedforward = new SimpleMotorFeedforward(4.87, 0.238, 0.665);
   }
 
   // Method used for get the only one instance of the subsystem
@@ -137,29 +143,23 @@ public class Drivetrain extends SubsystemBase {
     return m_Drivetrain;
   }
   
+  
   // This method is used to execute the move of the drivetrain
-  public void move(double linear, double rotation){
-    // Execute the move of the drivetrain
-    m_drive.arcadeDrive(-linear, rotation);
-  }
-
-  public void drive(ChassisSpeeds chassis){
+  public void driveAuto(ChassisSpeeds chassis, DriveFeedforwards feedforwards){
     DifferentialDriveWheelSpeeds wheelSpeeds = m_kinematics.toWheelSpeeds(chassis);
-    m_drive.tankDrive(wheelSpeeds.leftMetersPerSecond, wheelSpeeds.rightMetersPerSecond);
+
+    //leftSpeed = m_leftPid.calculate(m_leftEncoder.getVelocity(), wheelSpeeds.leftMetersPerSecond);
+    //rigthSpeed = m_rigthPid.calculate(m_rightEncoder.getVelocity(), wheelSpeeds.rightMetersPerSecond);
+    leftSpeed = m_leftPid.calculate(m_leftBack.getBusVoltage(), feedsFeedforward.calculate(wheelSpeeds.leftMetersPerSecond));
+    rigthSpeed = m_rigthPid.calculate(m_rigthBack.getBusVoltage(), feedsFeedforward.calculate(wheelSpeeds.rightMetersPerSecond));
+
+    m_leftBack.setVoltage(wheelSpeeds.leftMetersPerSecond);
+    m_rigthBack.setVoltage(wheelSpeeds.rightMetersPerSecond);
+
   }
 
-  // Command used to call the movement, and asign this as the default command for the sybsystem
-  public Command executeMove(DoubleSupplier linear, DoubleSupplier rotation){
-    return run(() -> move(-linear.getAsDouble(), rotation.getAsDouble()));
-  }
-
-  public Command executeDrive(ChassisSpeeds chassis){
-    return run(() -> drive(chassis));
-  }
-
-  public Command defaulrDrive(DoubleSupplier linear, DoubleSupplier rotation){
-    ChassisSpeeds m_chassis = new ChassisSpeeds(linear.getAsDouble(), 0.0, rotation.getAsDouble());
-    return run(() -> drive(m_chassis));
+  public void driveTeleop(double xSpeed, double zRotation){
+    m_drive.arcadeDrive(xSpeed, zRotation, true);
   }
 
   public Pose2d getPose(){
@@ -175,13 +175,35 @@ public class Drivetrain extends SubsystemBase {
     return m_kinematics.toChassisSpeeds(wheelsSpeeds);
   }
 
+  public double encoderCountsToMts(double encoderCounts){
+    double wheelRotation = encoderCounts;
+    double distance = wheelRotation * (Math.PI * DrivetrainConst.k_wheelDiam);
+    return distance;
+  }
+
+  public double getLeftMeters(){
+    return encoderCountsToMts(m_leftEncoder.getPosition());
+  }
+
+  public double getRigthMeters(){
+    return encoderCountsToMts(m_rightEncoder.getPosition()); // Lectura en tics
+  }
+
+  public double encoderVelToMeterPerSecond(double encoderVel){
+    double vel = (encoderVel*(Units.inchesToMeters(6)*Math.PI))/60;
+    return vel;
+  }
+
   @Override
   public void periodic() {
     // Show the data in the smartdashboard
-    m_odometry.update(Rotation2d.fromDegrees(m_gyro.getAngle()), new DifferentialDriveWheelPositions(m_leftEncoder.getPosition(), m_rightEncoder.getPosition()));
-    m_field.setRobotPose(m_odometry.getPoseMeters());
+    m_odometry.update(Rotation2d.fromDegrees(m_gyro.getAngle()), getLeftMeters(), getRigthMeters());
+    m_field.setRobotPose(new Pose2d(m_odometry.getPoseMeters().getX(), m_odometry.getPoseMeters().getY(), m_odometry.getPoseMeters().getRotation()));
     SmartDashboard.putData("odometry", m_field);
-    SmartDashboard.putNumber("Left Side", m_leftEncoder.getPosition());
-    SmartDashboard.putNumber("Right Side", m_rightEncoder.getPosition());
+    SmartDashboard.putNumber("Left Side", leftSpeed);
+    SmartDashboard.putNumber("Right Side", rigthSpeed);
+    SmartDashboard.putNumber("Gyro", m_gyro.getAngle());
+    SmartDashboard.putNumber("LEFT PID", getLeftMeters());
+    SmartDashboard.putNumber("RIGTH PID", getRigthMeters());
   }
 }

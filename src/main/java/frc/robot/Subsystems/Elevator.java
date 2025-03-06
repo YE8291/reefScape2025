@@ -39,7 +39,7 @@ public class Elevator extends SubsystemBase {
 
     m_encoder = m_firstMotor.getEncoder();
 
-    m_pid = new PIDController(1, 0, 0.1);
+    m_pid = new PIDController(1.1, 0, 0.1);
   }
 
   public void move(double vel){
