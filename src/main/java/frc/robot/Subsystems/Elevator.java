@@ -40,6 +40,8 @@ public class Elevator extends SubsystemBase {
     m_encoder = m_firstMotor.getEncoder();
 
     m_pid = new PIDController(1.1, 0, 0.1);
+
+    resetEncoder();
   }
 
   public void move(double vel){
@@ -68,6 +70,10 @@ public class Elevator extends SubsystemBase {
 
   public double getPosition(){
     return m_encoder.getPosition();
+  }
+
+  public void resetEncoder(){
+    m_encoder.setPosition(0);
   }
 
   public static Elevator getInstance(){

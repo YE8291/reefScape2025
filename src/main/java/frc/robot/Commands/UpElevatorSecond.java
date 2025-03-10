@@ -5,42 +5,41 @@
 package frc.robot.Commands;
 
 import edu.wpi.first.wpilibj2.command.Command;
-import frc.robot.Subsystems.Drivetrain;
+import frc.robot.Subsystems.Elevator;
 
 /* You should consider using the more terse Command factories API instead https://docs.wpilib.org/en/stable/docs/software/commandbased/organizing-command-based.html#defining-commands */
-public class moveonemeter extends Command {
+public class UpElevatorSecond extends Command {
+  
+  private Elevator m_Elevator;
 
-  private Drivetrain m_drive;
-
-  /** Creates a new moveonemeter. */
-  public moveonemeter() {
+  /** Creates a new UpElevatorSecond. */
+  public UpElevatorSecond() {
     // Use addRequirements() here to declare subsystem dependencies.
-    m_drive = Drivetrain.getInstance();
-    addRequirements(m_drive);
+    m_Elevator = Elevator.getInstance();
+    addRequirements(m_Elevator);
   }
 
   // Called when the command is initially scheduled.
   @Override
-  public void initialize() {}
+  public void initialize() {
+    m_Elevator.setSetpoint(12);
+    m_Elevator.enablePID();
+  }
 
   // Called every time the scheduler runs while the command is scheduled.
   @Override
-  public void execute() {
-    if(m_drive.getLeftMeters() > -1){
-      m_drive.driveTeleop(0.3, 0);
-    }
-  }
+  public void execute() {}
 
   // Called once the command ends or is interrupted.
   @Override
   public void end(boolean interrupted) {
-    m_drive.driveTeleop(0, 0);
+    m_Elevator.disablePID();
   }
 
   // Returns true when the command should end.
   @Override
   public boolean isFinished() {
-    if(m_drive.getLeftMeters() < -1){
+    if(m_Elevator.getPosition() >= 14){
       return true;
     }
     return false;

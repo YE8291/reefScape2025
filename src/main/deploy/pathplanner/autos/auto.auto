@@ -13,7 +13,7 @@
       ]
     }
   },
-  "resetOdom": true,
+  "resetOdom": false,
   "folder": "Blue autos",
   "choreoAuto": false
 }

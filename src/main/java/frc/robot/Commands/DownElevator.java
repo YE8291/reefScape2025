@@ -21,7 +21,7 @@ public class DownElevator extends Command {
   // Called when the command is initially scheduled.
   @Override
   public void initialize() {
-    m_Elevator.setSetpoint(-0.5);
+    m_Elevator.setSetpoint(0);
     m_Elevator.enablePID();
   }
 
