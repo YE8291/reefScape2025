@@ -14,6 +14,7 @@ import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+
 import static frc.robot.Constants.ElevatorConst;
 
 public class Elevator extends SubsystemBase {
@@ -39,9 +40,9 @@ public class Elevator extends SubsystemBase {
 
     m_encoder = m_firstMotor.getEncoder();
 
-    m_pid = new PIDController(1.1, 0, 0.1);
+    m_pid = new PIDController(1.2, 0, 0.15);
 
-    resetEncoder();
+    resetPos();
   }
 
   public void move(double vel){
@@ -70,10 +71,6 @@ public class Elevator extends SubsystemBase {
 
   public double getPosition(){
     return m_encoder.getPosition();
-  }
-
-  public void resetEncoder(){
-    m_encoder.setPosition(0);
   }
 
   public static Elevator getInstance(){

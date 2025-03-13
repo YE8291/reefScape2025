@@ -4,9 +4,6 @@
 
 package frc.robot.Subsystems;
 
-import com.pathplanner.lib.auto.AutoBuilder;
-import com.pathplanner.lib.config.RobotConfig;
-import com.pathplanner.lib.controllers.PPLTVController;
 import com.revrobotics.RelativeEncoder;
 import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.SparkBase.PersistMode;
@@ -17,7 +14,6 @@ import com.studica.frc.AHRS;
 
 import edu.wpi.first.math.controller.PIDController;
 
-import edu.wpi.first.math.controller.SimpleMotorFeedforward;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
@@ -28,11 +24,9 @@ import edu.wpi.first.math.util.Units;
 import edu.wpi.first.units.measure.MutDistance;
 import edu.wpi.first.units.measure.MutLinearVelocity;
 import edu.wpi.first.units.measure.MutVoltage;
-import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.Constants.BlueCenter;
@@ -70,11 +64,6 @@ public class Drivetrain extends SubsystemBase {
 
   private DifferentialDriveOdometry m_odometry;
   private DifferentialDriveKinematics m_kinematics;
-
-  private double leftSpeed;
-  private double rigthSpeed;
-
-  private SimpleMotorFeedforward feedsFeedforward;
 
   private final MutVoltage m_appliedVoltage = Volts.mutable(0);
   private final MutDistance m_distance = Meters.mutable(0);
@@ -116,8 +105,7 @@ public class Drivetrain extends SubsystemBase {
     m_leftEncoder = m_leftFront.getEncoder();
 
     // Apply the differents configs, for after apply each motor 
-    globalConfigs.smartCurrentLimit(50).idleMode(IdleMode.kBrake).closedLoopRampRate(2.5).encoder.velocityConversionFactor(Math.PI * Units.inchesToMeters(6)).
-    positionConversionFactor(Math.PI * Units.inchesToMeters(6));
+    globalConfigs.smartCurrentLimit(50).idleMode(IdleMode.kBrake).closedLoopRampRate(4);
     rigthLeaderConfig.apply(globalConfigs).inverted(true);
 
     leftFollowerConfigs.apply(globalConfigs).follow(m_leftBack);
@@ -138,40 +126,20 @@ public class Drivetrain extends SubsystemBase {
     m_field = new Field2d();
     
     m_gyro = new AHRS(DrivetrainConst.k_gyro);
-    m_gyro.setAngleAdjustment(BlueCenter.k_rotation.getDegrees());
+    m_gyro.setAngleAdjustment(0);
 
     m_odometry = new DifferentialDriveOdometry(Rotation2d.fromDegrees(m_gyro.getAngle()), 0, 0, 
-    new Pose2d(0.0, 0.0, Rotation2d.fromDegrees(0)));
+    BlueCenter.K_POSE2D);
     
     m_kinematics = new DifferentialDriveKinematics(DrivetrainConst.k_robotWidth);
 
-    RobotConfig config;
-    try {
-        config = RobotConfig.fromGUISettings();
-        AutoBuilder.configure(
-        this::getPose, 
-        this::resetPose, 
-        this::getRobotRelativeSpeeds, 
-        (speeds, feedsFeedForward) -> driveAuto(speeds), 
-        new PPLTVController(0.02),
-        config, 
-        () -> {
-        var alliance = DriverStation.getAlliance();
-        if(alliance.isPresent()){
-          return alliance.get() == DriverStation.Alliance.Red;
-        }
-        return false;
-      }, this);
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
+    m_leftPid = new PIDController(0.7, 0, 0.01);
+    m_rigthPid = new PIDController(0.7, 0, 0.01);
 
-    m_leftPid = new PIDController(0, 0, 0);
-    m_rigthPid = new PIDController(0, 0, 0);
-
-    feedsFeedforward = new SimpleMotorFeedforward(1.0636, 1.2066, 0.41989);
+    //feedsFeedforward = new SimpleMotorFeedforward(1.0636, 1.2066, 0.41989);
 
     resetEncoders();
+    resetPose(BlueCenter.K_POSE2D);
   }
 
   // Method used for get the only one instance of the subsystem
@@ -186,18 +154,9 @@ public class Drivetrain extends SubsystemBase {
   
   
   // This method is used to execute the move of the drivetrain
-  public void driveAuto(ChassisSpeeds chassis){
-    DifferentialDriveWheelSpeeds wheelSpeeds = m_kinematics.toWheelSpeeds(chassis);
-
-    //leftSpeed = m_leftPid.calculate(m_leftEncoder.getVelocitthlSpeeds.leftMetersPerSecond);
-    //rigthSpeed = m_rigthPid.calculate(m_rightEncoder.getVelocity(), wheelSpeeds.rightMetersPerSecond);
-    
-    double leftFF = feedsFeedforward.calculate(wheelSpeeds.leftMetersPerSecond);
-    double rightFF = feedsFeedforward.calculate(wheelSpeeds.rightMetersPerSecond);
-
-    m_leftBack.setVoltage(leftFF);
-    m_rigthBack.setVoltage(rightFF);
-
+  public void driveAuto(double position){
+    m_leftBack.setVoltage(-m_leftPid.calculate(m_leftEncoder.getPosition(), position));
+    m_rigthBack.setVoltage(-m_rigthPid.calculate(m_rightEncoder.getPosition(), position));
   }
 
   public void driveTeleop(double xSpeed, double zRotation){
@@ -237,16 +196,12 @@ public class Drivetrain extends SubsystemBase {
     return (m_leftEncoder.getPosition() + m_rightEncoder.getPosition())/2;
   }
 
+  public double getPositionMts(){
+    return (m_leftEncoder.getPosition() + m_rightEncoder.getPosition())/2;
+  }
+
   public double getVoltageRight(){
     return (m_leftBack.getBusVoltage() + m_rigthBack.getBusVoltage())/2;
-  }
-
-  public Command sysIdQuasistatic(SysIdRoutine.Direction direction){
-    return rutina.quasistatic(direction);
-  }
-
-  public Command sysIdDynamic(SysIdRoutine.Direction direction){
-    return rutina.dynamic(direction);
   }
 
   public void resetEncoders(){
@@ -254,14 +209,29 @@ public class Drivetrain extends SubsystemBase {
     m_rightEncoder.setPosition(0);
   }
 
+  public void setSetpoint(double setpoint){
+    m_leftPid.setSetpoint(setpoint);
+    m_rigthPid.setSetpoint(setpoint);
+  }
+
+  public double getSetpoint(){
+    return m_leftPid.getSetpoint();
+  }
+
+  public void setPConst(double kp_left, double kp_rigth){
+    m_rigthPid.setP(kp_rigth);
+    m_leftPid.setP(kp_left);
+  }
+
   @Override
   public void periodic() {
     // Show the data in the smartdashboard
-    m_odometry.update(Rotation2d.fromDegrees(m_gyro.getAngle()),m_leftEncoder.getPosition(), m_rightEncoder.getPosition());
+    m_odometry.update(Rotation2d.fromDegrees(m_gyro.getAngle()),-((m_leftEncoder.getPosition()/2)*Math.PI*Units.inchesToMeters(6)), -((m_rightEncoder.getPosition()/2)*Math.PI*Units.inchesToMeters(6)));
     m_field.setRobotPose(new Pose2d(m_odometry.getPoseMeters().getX(), m_odometry.getPoseMeters().getY(), m_odometry.getPoseMeters().getRotation()));
     SmartDashboard.putData("odometry", m_field);
     SmartDashboard.putNumber("Left Side", m_leftEncoder.getPosition());
-    SmartDashboard.putNumber("Right Side", rigthSpeed);
+    SmartDashboard.putNumber("Right Side", m_rightEncoder.getPosition());
     SmartDashboard.putNumber("Gyro", m_gyro.getAngle());
+    SmartDashboard.putNumber("Encoder Value", getPositionMts());
   }
 }

@@ -4,8 +4,6 @@
 
 package frc.robot;
 
-import edu.wpi.first.util.datalog.DataLog;
-import edu.wpi.first.util.datalog.DoubleLogEntry;
 import edu.wpi.first.wpilibj.DataLogManager;
 import edu.wpi.first.wpilibj.TimedRobot;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -14,20 +12,12 @@ import edu.wpi.first.wpilibj2.command.CommandScheduler;
 public class Robot extends TimedRobot {
   private Command m_autonomousCommand;
 
-  DoubleLogEntry velocidadDerecha;
-  DoubleLogEntry posicionDerecha;
-  DoubleLogEntry voltajeDerecho;
-
   private final RobotContainer m_robotContainer;
 
   public Robot() {
     m_robotContainer = new RobotContainer();
 
     DataLogManager.start();
-    DataLog log = DataLogManager.getLog();
-    velocidadDerecha = new DoubleLogEntry(log, "velocidad derecha");
-    posicionDerecha = new DoubleLogEntry(log, "Posicion derecha");
-    voltajeDerecho = new DoubleLogEntry(log, "Voltaje derecho");
   }
 
   @Override
@@ -67,11 +57,7 @@ public class Robot extends TimedRobot {
   }
 
   @Override
-  public void teleopPeriodic() {
-    velocidadDerecha.append(m_robotContainer.getDrivetrain().getVelocityRight());
-    posicionDerecha.append(m_robotContainer.getDrivetrain().getPositionRight());
-    voltajeDerecho.append(m_robotContainer.getDrivetrain().getVoltageRight());
-  }
+  public void teleopPeriodic() {}
 
   @Override
   public void teleopExit() {}

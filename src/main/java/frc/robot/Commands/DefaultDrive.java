@@ -32,7 +32,7 @@ public class DefaultDrive extends Command {
   @Override
   public void execute() {
     //chassisSpeeds = new ChassisSpeeds(m_Controller.getLeftY(), 0.0, m_Controller.getRightX()*6);
-    m_drivetrain.driveTeleop(m_Controller.getLeftY(), m_Controller.getRightX());
+    m_drivetrain.driveTeleop(m_Controller.getLeftY()*0.7, m_Controller.getRightX()*0.7);
   }
 
   // Called once the command ends or is interrupted.

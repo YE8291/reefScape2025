@@ -21,7 +21,7 @@ public class DownElevator extends Command {
   // Called when the command is initially scheduled.
   @Override
   public void initialize() {
-    m_Elevator.setSetpoint(0);
+    m_Elevator.setSetpoint(-0.5);
     m_Elevator.enablePID();
   }
 
@@ -38,7 +38,7 @@ public class DownElevator extends Command {
   // Returns true when the command should end.
   @Override
   public boolean isFinished() {
-    if(m_Elevator.getPosition() <= -0.3){
+    if(m_Elevator.getPosition() <= 0){
       return true;
     }
     return false;
