@@ -4,43 +4,44 @@
 
 package frc.robot.Commands;
 
+//import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.wpilibj2.command.Command;
-import frc.robot.Subsystems.Elevator;
+import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+import frc.robot.Subsystems.Drivetrain;
 
 /* You should consider using the more terse Command factories API instead https://docs.wpilib.org/en/stable/docs/software/commandbased/organizing-command-based.html#defining-commands */
-public class UpElevator extends Command {
-  private Elevator m_Elevator;
+public class DefaultDrive extends Command {
 
-  /** Creates a new UpElevator. */
-  public UpElevator() {
+  private Drivetrain m_drivetrain;
+  private CommandXboxController m_Controller;
+  //private ChassisSpeeds chassisSpeeds;
+
+  /** Creates a new DefaultDrive. */
+  public DefaultDrive(CommandXboxController controller) {
     // Use addRequirements() here to declare subsystem dependencies.
-    m_Elevator = Elevator.getInstance();
-    addRequirements(m_Elevator);
+    m_drivetrain = Drivetrain.getInstance();
+    this.m_Controller = controller;
+    addRequirements(m_drivetrain);
   }
 
   // Called when the command is initially scheduled.
   @Override
-  public void initialize() {
-    m_Elevator.setSetpoint(2.5);
-    m_Elevator.enablePID();
-  }
+  public void initialize() {}
 
   // Called every time the scheduler runs while the command is scheduled.
   @Override
-  public void execute() {}
+  public void execute() {
+    //chassisSpeeds = new ChassisSpeeds(m_Controller.getLeftY(), 0.0, m_Controller.getRightX()*6);
+    m_drivetrain.driveTeleop(m_Controller.getLeftY()*0.8, m_Controller.getRightX()*0.8);
+  }
 
   // Called once the command ends or is interrupted.
   @Override
-  public void end(boolean interrupted) {
-    m_Elevator.disablePID();
-  }
+  public void end(boolean interrupted) {}
 
   // Returns true when the command should end.
   @Override
   public boolean isFinished() {
-    if(m_Elevator.getPosition() >= 2){
-      return true;
-    }
     return false;
   }
 }

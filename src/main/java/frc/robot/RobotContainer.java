@@ -4,59 +4,47 @@
 
 package frc.robot;
 
-import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+import frc.robot.Commands.DefaultDrive;
 import frc.robot.Commands.DownElevator;
+import frc.robot.Commands.DownElevatorWithPulse;
+import frc.robot.Commands.ElevatorWithPulse;
+import frc.robot.Commands.LetL1;
+import frc.robot.Commands.MoveBack;
+import frc.robot.Commands.MoveOneMtr;
 import frc.robot.Commands.Shoot;
-import frc.robot.Commands.StopElevator;
-import frc.robot.Commands.Take;
+import frc.robot.Commands.ShootAuto;
 import frc.robot.Commands.UpElevator;
-import frc.robot.Commands.firstAuto;
-import frc.robot.Commands.secondAuto;
-import frc.robot.Commands.thirthAuto;
+import frc.robot.Commands.UpElevatorSecond;
 import frc.robot.Subsystems.Drivetrain;
 
 public class RobotContainer {
 
   private Drivetrain m_drivetrain = Drivetrain.getInstance();
   private CommandXboxController m_Controller = new CommandXboxController(0);
-  private final SendableChooser<String> m_autoChooser; 
-  private final String firstBlueAuto = "fba";
-  private final String secondBlueAuto = "sba";
-  private final String thirthBlueAuto = "tba";
 
   public RobotContainer() {
-    m_autoChooser = new SendableChooser<>();
-    m_autoChooser.addOption("First Blue", firstBlueAuto);
-    m_autoChooser.addOption("Second Blue", secondBlueAuto);
-    m_autoChooser.addOption("Thirth Blue", thirthBlueAuto);
-    m_autoChooser.setDefaultOption("No auto", "NA");
-    SmartDashboard.putData(m_autoChooser);
     configureBindings();
   }
 
   private void configureBindings() {
-    m_drivetrain.setDefaultCommand(m_drivetrain.executeMove(() -> m_Controller.getLeftY(), () -> m_Controller.getRightX()));
-    m_Controller.a().whileTrue(new UpElevator()).whileFalse(new StopElevator());
-    m_Controller.b().whileTrue(new DownElevator()).whileFalse(new StopElevator());
-    m_Controller.x().whileTrue(new Shoot());
-    m_Controller.y().whileTrue(new Take());
+    m_drivetrain.setDefaultCommand(new DefaultDrive(m_Controller));
+    m_Controller.x().onTrue(new DownElevator()); // Cambiar al punto 0
+    m_Controller.rightTrigger().whileTrue(new Shoot());
+    m_Controller.leftBumper().onTrue(new UpElevator()); // Nivel 2 (2.08 encoder)
+    m_Controller.leftTrigger().onTrue(new UpElevatorSecond()); // Nivel 3 gatillo izquierdo (14.13)
+    m_Controller.rightBumper().whileTrue(new LetL1());
   }
 
   public Command getAutonomousCommand() {
-    switch (m_autoChooser.getSelected()) {
-      case "fba":
-        return Commands.sequence(new firstAuto());
-      case "sba":
-        return Commands.sequence(new secondAuto());
-      case "tba":
-        return Commands.sequence(new thirthAuto());
-      default:
-        return Commands.print("No auto command selected");
-    }
-    //return Commands.print("No autonomous command configured");
+    return Commands.sequence(
+      new MoveOneMtr(), 
+      new UpElevatorSecond(), 
+      new ShootAuto(),
+      new DownElevator(),
+      new MoveBack()
+    );
   }
 }

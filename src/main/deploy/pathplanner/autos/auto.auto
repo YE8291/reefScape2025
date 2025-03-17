@@ -9,18 +9,6 @@
           "data": {
             "pathName": "FBP Go Reef"
           }
-        },
-        {
-          "type": "path",
-          "data": {
-            "pathName": "FBP Go Back"
-          }
-        },
-        {
-          "type": "path",
-          "data": {
-            "pathName": "FBP Go Source"
-          }
         }
       ]
     }
