@@ -9,6 +9,8 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Commands.DefaultDrive;
 import frc.robot.Commands.DownElevator;
+import frc.robot.Commands.DownElevatorWithPulse;
+import frc.robot.Commands.ElevatorWithPulse;
 import frc.robot.Commands.LetL1;
 import frc.robot.Commands.MoveBack;
 import frc.robot.Commands.MoveOneMtr;
@@ -31,8 +33,8 @@ public class RobotContainer {
     m_drivetrain.setDefaultCommand(new DefaultDrive(m_Controller));
     m_Controller.x().onTrue(new DownElevator()); // Cambiar al punto 0
     m_Controller.rightTrigger().whileTrue(new Shoot());
-    m_Controller.leftBumper().onTrue(new UpElevator()); // Nivel 2 (4.8 encoder)
-    m_Controller.leftTrigger().onTrue(new UpElevatorSecond()); // Nivel 3 gatillo izquierdo (14.08)
+    m_Controller.leftBumper().onTrue(new UpElevator()); // Nivel 2 (2.08 encoder)
+    m_Controller.leftTrigger().onTrue(new UpElevatorSecond()); // Nivel 3 gatillo izquierdo (14.13)
     m_Controller.rightBumper().whileTrue(new LetL1());
   }
 

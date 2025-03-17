@@ -28,17 +28,19 @@ public class MoveOneMtr extends Command {
   // Called every time the scheduler runs while the command is scheduled.
   @Override
   public void execute() {
-    m_Drive.driveAuto(10.5);
+    m_Drive.driveAuto(-5.3, -5);
   }
 
   // Called once the command ends or is interrupted.
   @Override
-  public void end(boolean interrupted) {}
+  public void end(boolean interrupted) {
+    m_Drive.driveAuto(0, 0);
+  }
 
   // Returns true when the command should end.
   @Override
   public boolean isFinished() {
-    if(m_Drive.getPositionMts() >= 9.3){
+    if(m_Drive.getPositionMts() >= 14){
       return true;
     }
     return false;

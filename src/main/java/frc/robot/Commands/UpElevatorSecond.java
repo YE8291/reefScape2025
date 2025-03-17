@@ -22,7 +22,7 @@ public class UpElevatorSecond extends Command {
   // Called when the command is initially scheduled.
   @Override
   public void initialize() {
-    m_Elevator.setSetpoint(13);
+    m_Elevator.setSetpoint(13.5);
     m_Elevator.enablePID();
   }
 
@@ -39,7 +39,7 @@ public class UpElevatorSecond extends Command {
   // Returns true when the command should end.
   @Override
   public boolean isFinished() {
-    if(m_Elevator.getPosition() >= 12.5){
+    if(m_Elevator.getPosition() >= 13){
       return true;
     }
     return false;

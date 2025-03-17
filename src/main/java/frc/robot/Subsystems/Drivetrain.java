@@ -21,19 +21,12 @@ import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
 import edu.wpi.first.math.kinematics.DifferentialDriveOdometry;
 import edu.wpi.first.math.kinematics.DifferentialDriveWheelSpeeds;
 import edu.wpi.first.math.util.Units;
-import edu.wpi.first.units.measure.MutDistance;
-import edu.wpi.first.units.measure.MutLinearVelocity;
-import edu.wpi.first.units.measure.MutVoltage;
 import edu.wpi.first.wpilibj.drive.DifferentialDrive;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
-import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.Constants.BlueCenter;
 
-import static edu.wpi.first.units.Units.Meters;
-import static edu.wpi.first.units.Units.MetersPerSecond;
-import static edu.wpi.first.units.Units.Volts;
 import static frc.robot.Constants.DrivetrainConst;
 
 // Drivetrain Subsystem is the system to drive the chassis of the robot
@@ -65,28 +58,6 @@ public class Drivetrain extends SubsystemBase {
   private DifferentialDriveOdometry m_odometry;
   private DifferentialDriveKinematics m_kinematics;
 
-  private final MutVoltage m_appliedVoltage = Volts.mutable(0);
-  private final MutDistance m_distance = Meters.mutable(0);
-  private final MutLinearVelocity m_velocity = MetersPerSecond.mutable(0);
-
-  SysIdRoutine rutina = new SysIdRoutine(
-    new SysIdRoutine.Config(),
-     new SysIdRoutine.Mechanism(voltage -> {
-      m_rigthBack.setVoltage(voltage);
-      m_leftBack.setVoltage(voltage);
-     }, 
-     log -> {
-      log.motor("Motor Izq chasis")
-      .voltage(m_appliedVoltage.mut_replace(m_leftBack.getAppliedOutput() * m_leftBack.getBusVoltage(), Volts))
-      .linearPosition(m_distance.mut_replace(m_leftEncoder.getPosition(), Meters))
-      .linearVelocity(m_velocity.mut_replace(m_leftEncoder.getVelocity() / 60, MetersPerSecond));
-
-      log.motor("Motor Der chasis").voltage(m_appliedVoltage.mut_replace(m_rigthBack.getAppliedOutput() * m_rigthBack.getBusVoltage(), Volts))
-      .linearPosition(m_distance.mut_replace(m_rightEncoder.getPosition(), Meters))
-      .linearVelocity(m_velocity.mut_replace(m_rightEncoder.getVelocity() / 60, MetersPerSecond));
-     }, 
-     this));
-
   /** Creates a new Drivetrain. */
   public Drivetrain() {
     // Create the motor objects, with can id and motortype
@@ -105,8 +76,8 @@ public class Drivetrain extends SubsystemBase {
     m_leftEncoder = m_leftFront.getEncoder();
 
     // Apply the differents configs, for after apply each motor 
-    globalConfigs.smartCurrentLimit(50).idleMode(IdleMode.kBrake).closedLoopRampRate(4);
-    rigthLeaderConfig.apply(globalConfigs).inverted(true);
+    globalConfigs.smartCurrentLimit(50).idleMode(IdleMode.kBrake).encoder.countsPerRevolution(2048).inverted(false);
+    rigthLeaderConfig.apply(globalConfigs).inverted(true).encoder.inverted(true);
 
     leftFollowerConfigs.apply(globalConfigs).follow(m_leftBack);
     rightFollowerConfigs.apply(globalConfigs).follow(m_rigthBack);
@@ -154,9 +125,11 @@ public class Drivetrain extends SubsystemBase {
   
   
   // This method is used to execute the move of the drivetrain
-  public void driveAuto(double position){
-    m_leftBack.setVoltage(-m_leftPid.calculate(m_leftEncoder.getPosition(), position));
-    m_rigthBack.setVoltage(-m_rigthPid.calculate(m_rightEncoder.getPosition(), position));
+  public void driveAuto(double position, double position2){
+    //m_leftBack.setVoltage(-m_leftPid.calculate(m_leftEncoder.getPosition(), position));
+    //m_rigthBack.setVoltage(-m_rigthPid.calculate(m_rightEncoder.getPosition(), position));
+    m_leftBack.setVoltage(position);
+    m_rigthBack.setVoltage(position2);
   }
 
   public void driveTeleop(double xSpeed, double zRotation){

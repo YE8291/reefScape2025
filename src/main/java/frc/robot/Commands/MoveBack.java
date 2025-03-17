@@ -27,12 +27,14 @@ public class MoveBack extends Command {
   // Called every time the scheduler runs while the command is scheduled.
   @Override
   public void execute() {
-    m_drive.driveAuto(4.6);
+    m_drive.driveAuto(5, 5.15);
   }
 
   // Called once the command ends or is interrupted.
   @Override
-  public void end(boolean interrupted) {}
+  public void end(boolean interrupted) {
+    m_drive.driveAuto(0, 0);
+  }
 
   // Returns true when the command should end.
   @Override
