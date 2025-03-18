@@ -14,19 +14,19 @@ import edu.wpi.first.math.util.Units;
 /** Add your docs here. */
 public class Constants {
     public static class DrivetrainConst{
-        public final static int k_leftBack = 3;
-        public final static int k_leftFront = 4;
-        public final static int k_rigthBack = 1;
-        public final static int k_rigthFront = 2;
-        public final static int k_maxSpeed = 3;
-        public final static MotorType k_motorType = MotorType.kBrushed;
-        public final static NavXComType k_gyro = NavXComType.kMXP_SPI;
-        public final static double k_robotWidth = Units.inchesToMeters(27);
-        public final static double k_gearRatio = 8.460;
-        public final static double k_wheelDiam = Units.inchesToMeters(6);
-        public final static double kS = 0;
-        public final static double kV = 0;
-        public final static double kA = 0;
+        public final static int kLeftBack = 3;
+        public final static int kLeftFront = 4;
+        public final static int kRigthBack = 1;
+        public final static int kRigthFront = 2;
+        public final static int kMaxSpeed = 3;
+        public final static MotorType kMotorType = MotorType.kBrushed;
+        public final static NavXComType kGyro = NavXComType.kMXP_SPI;
+        public final static double kRobotWidth = Units.inchesToMeters(27);
+        public final static double kGearRatio = 8.460;
+        public final static double kWheelDiam = Units.inchesToMeters(6);
+        public final static double kVelFactor = (Math.PI * kWheelDiam) / 60;
+        public final static double kPosFactor = Math.PI * kWheelDiam;
+        public final static int kCPR = 2048;
     }
 
     public static class ElevatorConst{

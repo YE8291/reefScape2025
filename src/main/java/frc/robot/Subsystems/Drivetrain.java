@@ -4,6 +4,20 @@
 
 package frc.robot.Subsystems;
 
+import edu.wpi.first.math.controller.LTVUnicycleController;
+import edu.wpi.first.math.controller.PIDController;
+import edu.wpi.first.math.estimator.DifferentialDrivePoseEstimator;
+import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.kinematics.ChassisSpeeds;
+import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
+import edu.wpi.first.math.kinematics.DifferentialDriveWheelSpeeds;
+import edu.wpi.first.wpilibj.drive.DifferentialDrive;
+import edu.wpi.first.wpilibj.smartdashboard.Field2d;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+import edu.wpi.first.wpilibj2.command.SubsystemBase;
+
+import static frc.robot.Constants.DrivetrainConst;
+
 import com.revrobotics.RelativeEncoder;
 import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.SparkBase.PersistMode;
@@ -12,105 +26,81 @@ import com.revrobotics.spark.config.SparkMaxConfig;
 import com.revrobotics.spark.config.SparkBaseConfig.IdleMode;
 import com.studica.frc.AHRS;
 
-import edu.wpi.first.math.controller.PIDController;
-
-import edu.wpi.first.math.geometry.Pose2d;
-import edu.wpi.first.math.geometry.Rotation2d;
-import edu.wpi.first.math.kinematics.ChassisSpeeds;
-import edu.wpi.first.math.kinematics.DifferentialDriveKinematics;
-import edu.wpi.first.math.kinematics.DifferentialDriveOdometry;
-import edu.wpi.first.math.kinematics.DifferentialDriveWheelSpeeds;
-import edu.wpi.first.math.util.Units;
-import edu.wpi.first.wpilibj.drive.DifferentialDrive;
-import edu.wpi.first.wpilibj.smartdashboard.Field2d;
-import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
-import edu.wpi.first.wpilibj2.command.SubsystemBase;
-import frc.robot.Constants.BlueCenter;
-
-import static frc.robot.Constants.DrivetrainConst;
+import choreo.trajectory.DifferentialSample;
 
 // Drivetrain Subsystem is the system to drive the chassis of the robot
 public class Drivetrain extends SubsystemBase {
 
-  // The object motors used in the robot, ours robots have 4 motors in the drivetrain
-  private SparkMax m_leftFront;
-  private SparkMax m_leftBack;
-  private SparkMax m_rigthFront;
-  private SparkMax m_rigthBack;
+  private static Drivetrain m_Drivetrain; 
+
+  private SparkMax m_leaderLeft;
+  private SparkMax m_leaderRight;
+
+  private SparkMax m_followerLeft;
+  private SparkMax m_followerRight;
 
   private RelativeEncoder m_leftEncoder;
-  private RelativeEncoder m_rightEncoder;
+  private RelativeEncoder m_rigthEncoder;
 
-  // This object is used to manage the 4 motors as 1 system 
   private DifferentialDrive m_drive;
-
-  // This constant is used for only have one instance of this subsystem
-  private static Drivetrain m_Drivetrain;
-
-  // This object is used to create a representation 2d of the field, for put data in this representation
-  private Field2d m_field;
-
-  private PIDController m_leftPid;
-  private PIDController m_rigthPid;
 
   private AHRS m_gyro;
 
-  private DifferentialDriveOdometry m_odometry;
   private DifferentialDriveKinematics m_kinematics;
+  private DifferentialDrivePoseEstimator m_odometry;
+  private Field2d m_field;
+
+  private LTVUnicycleController controller;
+
+  private PIDController m_pidTank;
+
+  private Vision m_vision;
 
   /** Creates a new Drivetrain. */
   public Drivetrain() {
-    // Create the motor objects, with can id and motortype
-    m_leftBack = new SparkMax(DrivetrainConst.k_leftBack, DrivetrainConst.k_motorType);
-    m_leftFront = new SparkMax(DrivetrainConst.k_leftFront, DrivetrainConst.k_motorType);
-    m_rigthBack = new SparkMax(DrivetrainConst.k_rigthBack, DrivetrainConst.k_motorType);
-    m_rigthFront = new SparkMax(DrivetrainConst.k_rigthFront, DrivetrainConst.k_motorType);
+    m_leaderLeft = new SparkMax(DrivetrainConst.kLeftBack, DrivetrainConst.kMotorType);
+    m_leaderRight = new SparkMax(DrivetrainConst.kRigthBack, DrivetrainConst.kMotorType);
+    m_followerLeft = new SparkMax(DrivetrainConst.kLeftFront, DrivetrainConst.kMotorType);
+    m_followerRight = new SparkMax(DrivetrainConst.kRigthFront, DrivetrainConst.kMotorType);
 
-    // Create configs objects for each motor
-    SparkMaxConfig globalConfigs = new SparkMaxConfig();
-    SparkMaxConfig rigthLeaderConfig = new SparkMaxConfig();
-    SparkMaxConfig leftFollowerConfigs = new SparkMaxConfig();
-    SparkMaxConfig rightFollowerConfigs = new SparkMaxConfig();
+    SparkMaxConfig globalConfig = new SparkMaxConfig();
+    SparkMaxConfig rightLeaderConfig = new SparkMaxConfig();
+    SparkMaxConfig leftFollowerConfig = new SparkMaxConfig();
+    SparkMaxConfig rightFollowerConfig = new SparkMaxConfig();
 
-    m_rightEncoder = m_rigthBack.getEncoder();
-    m_leftEncoder = m_leftFront.getEncoder();
+    globalConfig.smartCurrentLimit(50).idleMode(IdleMode.kBrake).voltageCompensation(0.3)
+    .encoder.countsPerRevolution(DrivetrainConst.kCPR).velocityConversionFactor(DrivetrainConst.kVelFactor).positionConversionFactor(DrivetrainConst.kPosFactor);
+    rightLeaderConfig.apply(globalConfig).inverted(false).disableVoltageCompensation()
+    .encoder.countsPerRevolution(DrivetrainConst.kCPR).velocityConversionFactor(DrivetrainConst.kVelFactor).positionConversionFactor(DrivetrainConst.kPosFactor);
 
-    // Apply the differents configs, for after apply each motor 
-    globalConfigs.smartCurrentLimit(50).idleMode(IdleMode.kBrake).encoder.countsPerRevolution(2048).inverted(false);
-    rigthLeaderConfig.apply(globalConfigs).inverted(true).encoder.inverted(true);
+    leftFollowerConfig.apply(globalConfig).follow(m_leaderLeft).voltageCompensation(0.3);
+    rightFollowerConfig.apply(rightLeaderConfig).follow(m_leaderRight).disableVoltageCompensation();
 
-    leftFollowerConfigs.apply(globalConfigs).follow(m_leftBack);
-    rightFollowerConfigs.apply(globalConfigs).follow(m_rigthBack);
+    m_leaderLeft.configure(globalConfig, ResetMode.kNoResetSafeParameters, PersistMode.kPersistParameters);
+    m_leaderRight.configure(rightLeaderConfig, ResetMode.kNoResetSafeParameters, PersistMode.kPersistParameters);
+    m_followerLeft.configure(leftFollowerConfig, ResetMode.kNoResetSafeParameters, PersistMode.kPersistParameters);
+    m_followerRight.configure(rightFollowerConfig, ResetMode.kNoResetSafeParameters, PersistMode.kPersistParameters);
 
-    // Apply the config for each motor
-    m_leftBack.configure(globalConfigs, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
-    m_leftFront.configure(leftFollowerConfigs, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
-    m_rigthBack.configure(rigthLeaderConfig, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
-    m_rigthFront.configure(rightFollowerConfigs, ResetMode.kNoResetSafeParameters, PersistMode.kNoPersistParameters);
-    
-    // Create the config for the drivetrain and control all the motors as one motor
-    m_drive = new DifferentialDrive(m_leftBack, m_rigthBack);
+    m_leftEncoder = m_leaderLeft.getEncoder();
+    m_rigthEncoder = m_leaderRight.getEncoder();
+    resetEncoders();
 
+    m_drive = new DifferentialDrive(m_leaderLeft, m_leaderRight);
     m_drive.setSafetyEnabled(false);
 
-    // Create the object that represent the game field
-    m_field = new Field2d();
-    
-    m_gyro = new AHRS(DrivetrainConst.k_gyro);
-    m_gyro.setAngleAdjustment(0);
+    m_gyro = new AHRS(DrivetrainConst.kGyro);
+    resetGyro(); 
 
-    m_odometry = new DifferentialDriveOdometry(Rotation2d.fromDegrees(m_gyro.getAngle()), 0, 0, 
-    BlueCenter.K_POSE2D);
-    
-    m_kinematics = new DifferentialDriveKinematics(DrivetrainConst.k_robotWidth);
+    m_kinematics = new DifferentialDriveKinematics(DrivetrainConst.kRobotWidth);
+    m_odometry = new DifferentialDrivePoseEstimator(m_kinematics, m_gyro.getRotation2d(), m_leftEncoder.getPosition(), m_rigthEncoder.getPosition(), getPose());
 
-    m_leftPid = new PIDController(0.7, 0, 0.01);
-    m_rigthPid = new PIDController(0.7, 0, 0.01);
+    controller = new LTVUnicycleController(0.02);
 
-    //feedsFeedforward = new SimpleMotorFeedforward(1.0636, 1.2066, 0.41989);
+    m_pidTank = new PIDController(0.1, 0, 0);
 
-    resetEncoders();
-    resetPose(BlueCenter.K_POSE2D);
+    m_vision = Vision.getInstance();
+
+    SmartDashboard.putData(m_field);
   }
 
   // Method used for get the only one instance of the subsystem
@@ -122,89 +112,75 @@ public class Drivetrain extends SubsystemBase {
     // return the same instance subsystem for each call
     return m_Drivetrain;
   }
-  
-  
-  // This method is used to execute the move of the drivetrain
-  public void driveAuto(double position, double position2){
-    //m_leftBack.setVoltage(-m_leftPid.calculate(m_leftEncoder.getPosition(), position));
-    //m_rigthBack.setVoltage(-m_rigthPid.calculate(m_rightEncoder.getPosition(), position));
-    m_leftBack.setVoltage(position);
-    m_rigthBack.setVoltage(position2);
+
+  public void driveTeleop(double xSpeed, double zRot){
+    //m_drive.arcadeDrive(xSpeed, zRot, true);
+    driveAuto(new ChassisSpeeds(xSpeed, 0, zRot));
   }
 
-  public void driveTeleop(double xSpeed, double zRotation){
-    m_drive.arcadeDrive(xSpeed, zRotation, true);
+  public void driveAuto(ChassisSpeeds drive){
+    DifferentialDriveWheelSpeeds wheelSpeeds = m_kinematics.toWheelSpeeds(drive);
+    double leftSide = m_pidTank.calculate(m_leftEncoder.getVelocity(), wheelSpeeds.leftMetersPerSecond);
+    double rigthSide = m_pidTank.calculate(m_rigthEncoder.getVelocity(), wheelSpeeds.rightMetersPerSecond);
+
+    m_leaderLeft.setVoltage(leftSide);
+    m_leaderRight.setVoltage(rigthSide);
+  }
+
+  public void followTrajectory(DifferentialSample sample){
+    Pose2d pose = getPose();
+    ChassisSpeeds ff = sample.getChassisSpeeds();
+    ChassisSpeeds speeds = controller.calculate(
+      pose,
+      sample.getPose(),
+      ff.vxMetersPerSecond, 
+      ff.omegaRadiansPerSecond
+    );
+
+    driveAuto(speeds);
+  }
+
+  public void resetGyro(){
+    m_gyro.reset();
+  }
+  
+  public void setGyroCompesation(boolean isBlue){
+    if(isBlue){
+      m_gyro.setAngleAdjustment(180);
+    }else{
+      m_gyro.setAngleAdjustment(0);
+    }
+  }
+  
+  public void resetEncoders(){
+    m_leftEncoder.setPosition(0);
+    m_leftEncoder.setPosition(0);
   }
 
   public Pose2d getPose(){
-    return m_odometry.getPoseMeters();
+    return m_odometry.getEstimatedPosition();
   }
 
-  public void resetPose(Pose2d newPose){
-    m_odometry.resetPose(newPose);
+  public void setPose(Pose2d pose){
+    m_odometry.resetPose(pose);
   }
 
-  public ChassisSpeeds getRobotRelativeSpeeds(){
-    double estimatedSpeed = (m_leftEncoder.getVelocity() + m_rightEncoder.getVelocity()) / 2;
-    double estimatedRotation = Math.toDegrees(m_gyro.getRate());
-
-    return new ChassisSpeeds(estimatedSpeed, 0, estimatedRotation);
-  }
-
-  public DifferentialDriveWheelSpeeds getWheelsSpeeds(){
-    DifferentialDriveWheelSpeeds wheelSpeeds = new DifferentialDriveWheelSpeeds(m_leftEncoder.getVelocity(), m_rightEncoder.getVelocity());
-    return wheelSpeeds;
-  }
-
-  public double getVelocityMtsPerSecond(RelativeEncoder encoder){
-    double velocity = (encoder.getVelocity() * Math.PI * DrivetrainConst.k_wheelDiam) / 60;
-    return velocity;
-  }
-
-  public double getVelocityRight(){
-    return (m_leftEncoder.getVelocity() + m_rightEncoder.getVelocity())/2;
-  }
-
-  public double getPositionRight(){
-    return (m_leftEncoder.getPosition() + m_rightEncoder.getPosition())/2;
-  }
-
-  public double getPositionMts(){
-    return (m_leftEncoder.getPosition() + m_rightEncoder.getPosition())/2;
-  }
-
-  public double getVoltageRight(){
-    return (m_leftBack.getBusVoltage() + m_rigthBack.getBusVoltage())/2;
-  }
-
-  public void resetEncoders(){
-    m_leftEncoder.setPosition(0);
-    m_rightEncoder.setPosition(0);
-  }
-
-  public void setSetpoint(double setpoint){
-    m_leftPid.setSetpoint(setpoint);
-    m_rigthPid.setSetpoint(setpoint);
-  }
-
-  public double getSetpoint(){
-    return m_leftPid.getSetpoint();
-  }
-
-  public void setPConst(double kp_left, double kp_rigth){
-    m_rigthPid.setP(kp_rigth);
-    m_leftPid.setP(kp_left);
+  public void updateOdometry(){
+    double latency = m_vision.getLatency();
+    if(m_vision.isValid() && latency < 0.2){
+      m_odometry.addVisionMeasurement(m_vision.robotPoseVision(), System.currentTimeMillis()/1000 - latency);
+    }
+    m_odometry.update(m_gyro.getRotation2d(), m_leftEncoder.getPosition(), m_rigthEncoder.getPosition());
+    m_field.setRobotPose(m_odometry.getEstimatedPosition());
   }
 
   @Override
   public void periodic() {
-    // Show the data in the smartdashboard
-    m_odometry.update(Rotation2d.fromDegrees(m_gyro.getAngle()),-((m_leftEncoder.getPosition()/2)*Math.PI*Units.inchesToMeters(6)), -((m_rightEncoder.getPosition()/2)*Math.PI*Units.inchesToMeters(6)));
-    m_field.setRobotPose(new Pose2d(m_odometry.getPoseMeters().getX(), m_odometry.getPoseMeters().getY(), m_odometry.getPoseMeters().getRotation()));
-    SmartDashboard.putData("odometry", m_field);
-    SmartDashboard.putNumber("Left Side", m_leftEncoder.getPosition());
-    SmartDashboard.putNumber("Right Side", m_rightEncoder.getPosition());
-    SmartDashboard.putNumber("Gyro", m_gyro.getAngle());
-    SmartDashboard.putNumber("Encoder Value", getPositionMts());
+    updateOdometry(); 
+    SmartDashboard.putNumber("Left Encoder Vel", m_leftEncoder.getVelocity());
+    SmartDashboard.putNumber("Right Encoder Vel", m_rigthEncoder.getVelocity());
+    SmartDashboard.putNumber("Left Encoder Pos", m_leftEncoder.getPosition());
+    SmartDashboard.putNumber("Right Encoder Vel", m_rigthEncoder.getVelocity());
+    SmartDashboard.putNumber("Gyro Angle", m_gyro.getAngle());
   }
 }

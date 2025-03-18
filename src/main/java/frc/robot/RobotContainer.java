@@ -9,13 +9,8 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import frc.robot.Commands.DefaultDrive;
 import frc.robot.Commands.DownElevator;
-import frc.robot.Commands.DownElevatorWithPulse;
-import frc.robot.Commands.ElevatorWithPulse;
 import frc.robot.Commands.LetL1;
-import frc.robot.Commands.MoveBack;
-import frc.robot.Commands.MoveOneMtr;
 import frc.robot.Commands.Shoot;
-import frc.robot.Commands.ShootAuto;
 import frc.robot.Commands.UpElevator;
 import frc.robot.Commands.UpElevatorSecond;
 import frc.robot.Subsystems.Drivetrain;
@@ -39,12 +34,13 @@ public class RobotContainer {
   }
 
   public Command getAutonomousCommand() {
-    return Commands.sequence(
+    /*return Commands.sequence(
       new MoveOneMtr(), 
       new UpElevatorSecond(), 
       new ShootAuto(),
       new DownElevator(),
       new MoveBack()
-    );
+    );*/
+    return Commands.print("Choreo is running");
   }
 }
